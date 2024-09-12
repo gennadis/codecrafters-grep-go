@@ -17,6 +17,7 @@ const (
 	patternDigit    = "\\d"
 	patternWordChar = "\\w"
 	startOfLineChar = "^"
+	endOfLineChar   = "$"
 )
 
 // main is the entry point of the program.
@@ -104,6 +105,10 @@ func splitPattern(pattern string) []string {
 		case pattern[i] == '^':
 			patterns = append(patterns, string(pattern[i]))
 			i++
+		// Handle end-of-line anchor
+		case pattern[i] == '$':
+			patterns = append(patterns, string(pattern[i]))
+			i++
 		// Handle range patterns
 		case isRangePattern(pattern[i:]):
 			end := strings.Index(pattern[i:], "]")
@@ -129,8 +134,8 @@ func recursiveMatch(line string, patterns []string, linePos, patPos int) (bool, 
 	if patPos == len(patterns) {
 		return true, nil
 	}
-	// If we've reached the end of the line, return false
-	if linePos >= len(line) {
+	// If we've reached the end of the line and not all patterns were processed, return false
+	if linePos > len(line) {
 		return false, nil
 	}
 
@@ -141,12 +146,12 @@ func recursiveMatch(line string, patterns []string, linePos, patPos int) (bool, 
 	switch {
 	// Handle '\d' pattern
 	case pat == patternDigit:
-		if unicode.IsDigit(rune(line[linePos])) {
+		if linePos < len(line) && unicode.IsDigit(rune(line[linePos])) {
 			return recursiveMatch(line, patterns, linePos+1, patPos+1)
 		}
 	// Handle '\w' pattern
 	case pat == patternWordChar:
-		if unicode.IsLetter(rune(line[linePos])) || rune(line[linePos]) == '_' {
+		if linePos < len(line) && (unicode.IsLetter(rune(line[linePos])) || rune(line[linePos]) == '_') {
 			return recursiveMatch(line, patterns, linePos+1, patPos+1)
 		}
 	// Handle '^' anchor
@@ -154,9 +159,14 @@ func recursiveMatch(line string, patterns []string, linePos, patPos int) (bool, 
 		if linePos == 0 {
 			return recursiveMatch(line, patterns, linePos, patPos+1)
 		}
+	// Handle '$' anchor
+	case pat == endOfLineChar:
+		if linePos == len(line) {
+			return recursiveMatch(line, patterns, linePos, patPos+1)
+		}
 	// Handle range patterns
 	case isRangePattern(pat):
-		if matchRangePattern([]byte{line[linePos]}, pat) {
+		if linePos < len(line) && matchRangePattern([]byte{line[linePos]}, pat) {
 			return recursiveMatch(line, patterns, linePos+1, patPos+1)
 		}
 	// Handle literal patterns
