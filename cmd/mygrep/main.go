@@ -45,7 +45,7 @@ func matchLine(line []byte, pattern string) (bool, error) {
 	var ok bool
 
 	switch pattern {
-	case "//d": // contains any digit
+	case "\\d": // contains any digit
 		ok = bytes.ContainsAny(line, digits)
 	default:
 		ok = bytes.ContainsAny(line, pattern)
