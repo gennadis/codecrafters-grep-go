@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -34,19 +35,19 @@ func main() {
 	}
 
 	// Match line against pattern
-	ok, err := matchLine(line, pattern)
+	matched, err := matchLine(line, pattern)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(2)
 	}
+	fmt.Printf("[DEBUG] result: %v\n", matched)
 
 	// Exit with code 1 if no match, otherwise default to 0 (success)
-	if !ok {
+	if !matched {
 		os.Exit(1)
-	} else {
-		os.Exit(0)
 	}
 
+	// Exit with code 0 - success
 }
 
 // matchLine checks if the given line matches the pattern.
@@ -54,21 +55,46 @@ func matchLine(line []byte, pattern string) (bool, error) {
 	if utf8.RuneCountInString(pattern) == 0 {
 		return false, fmt.Errorf("unsupported pattern: %q", pattern)
 	}
+	fmt.Printf("[DEBUG] line '%s', pattern: '%s'\n", line, pattern)
 
 	var matched bool
 
-	if bytes.ContainsRune([]byte(pattern), '[') && bytes.ContainsRune([]byte(pattern), ']') { // positive character group
-		matched = bytes.ContainsAny(line, pattern)
-	} else {
-		switch pattern {
-		case patternDigit: // contains any digit
-			matched = bytes.ContainsAny(line, digits)
-		case patternWordChar: // contains any alphanumeric (a-z, A-Z, 0-9, _)
-			matched = bytes.ContainsAny(line, alphanumeric)
-		default:
-			matched = bytes.Contains(line, []byte(pattern))
-		}
+	switch {
+	case isRangePattern(pattern):
+		matched = matchRangePattern(line, pattern)
+	case pattern == patternDigit:
+		fmt.Println("[DEBUG] pattern is 'Digit'")
+		matched = bytes.ContainsAny(line, digits)
+	case pattern == patternWordChar:
+		fmt.Println("[DEBUG] pattern is 'WordChar'")
+		matched = bytes.ContainsAny(line, alphanumeric)
+	default:
+		matched = bytes.Contains(line, []byte(pattern))
 	}
 
 	return matched, nil
+}
+
+// isRangePattern checks if a pattern is a range pattern like [abc] or [^abc].
+func isRangePattern(pattern string) bool {
+	return strings.HasPrefix(pattern, "[") && strings.HasSuffix(pattern, "]")
+}
+
+// matchRangePattern matches line against a range pattern, supporting both inclusive and exclusive ranges.
+func matchRangePattern(line []byte, pattern string) bool {
+	var ok bool
+	inside := pattern[1 : len(pattern)-1]
+
+	if strings.HasPrefix(inside, "^") {
+		// [^abc] Not Range (a or b or c)
+		fmt.Println("[DEBUG] pattern is 'Not Range'")
+		inside = inside[1:]
+		ok = !bytes.ContainsAny(line, inside)
+	} else {
+		// [abc] Range (a or b or c)
+		fmt.Println("[DEBUG] pattern is 'Range'")
+		ok = bytes.ContainsAny(line, inside)
+	}
+
+	return ok
 }
