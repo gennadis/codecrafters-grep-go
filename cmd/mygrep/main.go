@@ -16,6 +16,7 @@ const (
 	alphanumeric    = digits + letters + "_"
 	patternDigit    = "\\d"
 	patternWordChar = "\\w"
+	startOfLineChar = "^"
 )
 
 // main is the entry point of the program.
@@ -69,6 +70,12 @@ func matchPattern(line []byte, pattern string) (bool, error) {
 
 	lineStr := string(line)
 
+	// Check if the pattern starts with the start-of-line anchor
+	if patterns[0] == startOfLineChar {
+		fmt.Println("[DEBUG] pattern starts with '^' anchor")
+		return recursiveMatch(lineStr, patterns, 0, 1)
+	}
+
 	// Iterate over the line to check for matches starting from each position
 	for i := range lineStr {
 		fmt.Printf("[DEBUG] checking from position %d\n", i)
@@ -93,6 +100,10 @@ func splitPattern(pattern string) []string {
 				patterns = append(patterns, pattern[i:i+2])
 				i += 2
 			}
+		// Handle start-of-line anchor
+		case pattern[i] == '^':
+			patterns = append(patterns, string(pattern[i]))
+			i++
 		// Handle range patterns
 		case isRangePattern(pattern[i:]):
 			end := strings.Index(pattern[i:], "]")
@@ -137,6 +148,11 @@ func recursiveMatch(line string, patterns []string, linePos, patPos int) (bool, 
 	case pat == patternWordChar:
 		if unicode.IsLetter(rune(line[linePos])) || rune(line[linePos]) == '_' {
 			return recursiveMatch(line, patterns, linePos+1, patPos+1)
+		}
+	// Handle '^' anchor
+	case pat == startOfLineChar:
+		if linePos == 0 {
+			return recursiveMatch(line, patterns, linePos, patPos+1)
 		}
 	// Handle range patterns
 	case isRangePattern(pat):
