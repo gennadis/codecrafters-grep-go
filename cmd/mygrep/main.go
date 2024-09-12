@@ -8,7 +8,11 @@ import (
 	"unicode/utf8"
 )
 
-const digits = "0123456789"
+const (
+	digits  = "0123456789"
+	letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	special = "_"
+)
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 func main() {
@@ -47,6 +51,8 @@ func matchLine(line []byte, pattern string) (bool, error) {
 	switch pattern {
 	case "\\d": // contains any digit
 		ok = bytes.ContainsAny(line, digits)
+	case "\\w": // contains any alphanumeric (a-z, A-Z, 0-9, _)
+		ok = bytes.ContainsAny(line, digits+letters+special)
 	default:
 		ok = bytes.ContainsAny(line, pattern)
 	}
